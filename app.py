@@ -69,21 +69,32 @@ def load_css_and_html():
             margin: 0.5rem auto 0;
         }
         
-        /* --- Card Styling for Uploader --- */
-        [data-testid="stFileUploader"] {
+        /* --- Card Styling for Uploader and Reset Button --- */
+        .card {
             background-color: #ffffff;
             padding: 2.5rem;
             border-radius: 16px;
             box-shadow: 0 8px 24px rgba(149, 157, 165, 0.15);
             margin-bottom: 2.5rem;
+            border: 1px solid #e9ecef;
+        }
+
+        [data-testid="stFileUploader"] {
             border: 2px dashed #ced4da;
+            padding: 1rem;
+        }
+
+        .reset-button-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         
         .stButton>button {
             border-radius: 50px !important;
             font-weight: 600 !important;
             padding: 0.8rem 2rem !important;
-            width: 100%;
+            width: auto;
         }
 
         /* --- "How It Works" Section --- */
@@ -209,7 +220,12 @@ def load_model():
             "swish": tf.keras.activations.swish,
             "FixedDropout": tf.keras.layers.Dropout
         }
-        model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
+        # --- MODIFIED: Load model without compiling ---
+        model = tf.keras.models.load_model(
+            model_path,
+            custom_objects=custom_objects,
+            compile=False
+        )
         return model
     except Exception as e:
         st.error(f"Error loading model: {e}")
@@ -245,7 +261,7 @@ DISEASE_INFO = {
     'Grape - Black rot': { 'description': "Black rot is a serious fungal disease of grapes, causing dark spots on leaves, shoots, and fruit.", 'treatment': "Apply fungicides on a regular schedule, practice good sanitation, and improve air circulation." },
     'Grape - Esca (Black Measles)': { 'description': "Esca is a complex fungal disease that causes tiger-stripe patterns on leaves and can lead to vine death.", 'treatment': "Management is difficult. Prune out dead wood and consider surgical trunk renewal." },
     'Grape - Leaf blight (Isariopsis Leaf Spot)': { 'description': "This disease causes dark brown, angular spots on grape leaves, which can merge and cause defoliation.", 'treatment': "Fungicide applications are effective. Ensure good vineyard sanitation." },
-    'Orange - Haunglongbing (Citrus greening)': { 'description': "Citrus greening is a devastating bacterial disease that results in mottled leaves, misshapen fruit, and eventual tree death.", 'treatment': "There is no cure. Management focuses on removing infected trees and controlling the insect vector (Asian citrus psyllid)." },
+    'Orange - Haunglongbing (Citrus greening)': { 'description': "Citrus greening is a devastating bacterial disease that results in mottled leaves, misshapen fruit, and eventual tree death.", 'treatment': "There is no cure. Management focuses on removing infected trees and controlling the insect vector (Asian citrus psid)." },
     'Peach - Bacterial spot': { 'description': "Bacterial spot causes dark, angular lesions on leaves and sunken spots on fruit.", 'treatment': "Use resistant varieties, apply bactericides, and manage tree nutrition." },
     'Pepper, bell - Bacterial spot': { 'description': "This bacterial disease causes water-soaked spots on leaves and raised, scab-like spots on fruit.", 'treatment': "Use disease-free seed, practice crop rotation, and apply copper-based bactericides." },
     'Potato - Early blight': { 'description': "Early blight is a fungal disease that causes dark, 'target-like' spots on lower, older leaves.", 'treatment': "Apply fungicides, practice crop rotation, and ensure proper plant nutrition." },
@@ -282,120 +298,135 @@ with st.container():
     </div>
     """, unsafe_allow_html=True)
     
-    uploaded_file = st.file_uploader(
-        "Choose an image...",
-        type=["jpg", "jpeg", "png"],
-        label_visibility="collapsed"
-    )
+    # Initialize session state to hold the uploaded file
+    if 'uploaded_image' not in st.session_state:
+        st.session_state.uploaded_image = None
 
-    st.markdown("""
-    <div class="how-it-works">
-        <h2>How It Works</h2>
-    </div>
-    """, unsafe_allow_html=True)
+    # If an image IS in the session state, show the reset button
+    if st.session_state.uploaded_image is not None:
+        st.markdown('<div class="card reset-button-container">', unsafe_allow_html=True)
+        if st.button("Classify Another Image"):
+            st.session_state.uploaded_image = None
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+    # Otherwise, show the uploader
+    else:
+        uploaded_file = st.file_uploader(
+            "Choose an image...",
+            type=["jpg", "jpeg", "png"],
+            label_visibility="collapsed"
+        )
+        if uploaded_file is not None:
+            st.session_state.uploaded_image = uploaded_file
+            st.rerun()
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    # Display "How It Works" only on the main page (when no image is uploaded)
+    if st.session_state.uploaded_image is None:
         st.markdown("""
-        <div class="step">
-            <div class="step-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16"><path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/><path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/></svg>
-            </div>
-            <h3>1. Upload Image</h3>
-            <p>Select a clear photo of a plant leaf from your device.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown("""
-        <div class="step">
-            <div class="step-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16"><path d="M5 0a.5.5 0 0 1 .5.5V2h1V.5a.5.5 0 0 1 1 0V2h1V.5a.5.5 0 0 1 1 0V2h1V.5a.5.5 0 0 1 1 0V2A2.5 2.5 0 0 1 14 4.5h1.5a.5.5 0 0 1 0 1H14v1h1.5a.5.5 0 0 1 0 1H14v1h1.5a.5.5 0 0 1 0 1H14v1h1.5a.5.5 0 0 1 0 1H14A2.5 2.5 0 0 1 11.5 14v1.5a.5.5 0 0 1-1 0V14h-1v1.5a.5.5 0 0 1-1 0V14h-1v1.5a.5.5 0 0 1-1 0V14h-1v1.5a.5.5 0 0 1-1 0V14A2.5 2.5 0 0 1 2 11.5H.5a.5.5 0 0 1 0-1H2v-1H.5a.5.5 0 0 1 0-1H2v-1H.5a.5.5 0 0 1 0-1H2v-1H.5a.5.5 0 0 1 0-1H2A2.5 2.5 0 0 1 4.5 2V.5A.5.5 0 0 1 5 0zm-.5 3A1.5 1.5 0 0 0 3 4.5v7A1.5 1.5 0 0 0 4.5 13h7a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 11.5 3h-7zM5 6.5A1.5 1.5 0 0 1 6.5 5h3A1.5 1.5 0 0 1 11 6.5v3A1.5 1.5 0 0 1 9.5 11h-3A1.5 1.5 0 0 1 5 9.5v-3zM6.5 6a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z"/></svg>
-            </div>
-            <h3>2. AI Analysis</h3>
-            <p>Our system analyzes the image using a deep learning model.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col3:
-        st.markdown("""
-        <div class="step">
-            <div class="step-icon">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16"><path d="M7.5 5.5a.5.5 0 0 0-1 0v.634l-.549-.317a.5.5 0 1 0-.5.866L6 7l-.549.317a.5.5 0 1 0 .5.866l.549-.317V8.5a.5.5 0 1 0 1 0v-.634l.549.317a.5.5 0 1 0 .5-.866L8 7l.549-.317a.5.5 0 1 0-.5-.866l-.549.317V5.5zm-2 4.5a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 2a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5z"/><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/></svg>
-            </div>
-            <h3>3. Get Results</h3>
-            <p>Receive an instant diagnosis and information about the disease.</p>
+        <div class="how-it-works">
+            <h2>How It Works</h2>
         </div>
         """, unsafe_allow_html=True)
 
-if uploaded_file is not None:
-    image = Image.open(uploaded_file)
-    
-    # --- MODIFIED: Create a resized version for display ---
-    display_image = image.copy()
-    display_image.thumbnail((400, 400)) # Resize while maintaining aspect ratio
-
-    st.markdown('<div class="results-card">', unsafe_allow_html=True)
-    
-    res_col1, res_col2 = st.columns(2)
-    
-    with res_col1:
-        st.markdown("<h3>Uploaded Image</h3>", unsafe_allow_html=True)
-        # Use the resized 'display_image' and remove width parameter
-        st.image(display_image, caption='Your uploaded image.')
-
-    with res_col2:
-        with st.spinner('Classifying...'):
-            # Use the original, full-sized 'image' for prediction
-            processed_image = preprocess_image(image)
-            prediction = model.predict(processed_image)
-
-            predicted_class_index = np.argmax(prediction)
-            predicted_class_name_raw = CLASS_NAMES[predicted_class_index]
-            predicted_class_name = predicted_class_name_raw.replace('___', ' - ').replace('_', ' ')
-            confidence = float(np.max(prediction))
-
-            top_3_indices = np.argsort(prediction[0])[-3:][::-1]
-            top_3_predictions = [{"class": CLASS_NAMES[i].replace('___', ' - ').replace('_', ' '), "confidence": f"{prediction[0][i]*100:.2f}%"} for i in top_3_indices]
-
-        st.markdown("<h3>Prediction Result</h3>", unsafe_allow_html=True)
-        st.markdown(f"""
-        <div class="main-prediction">
-            <strong>{predicted_class_name}</strong>
-            <span>(Confidence: {confidence*100:.2f}%)</span>
-        </div>
-        """, unsafe_allow_html=True)
-
-        if "healthy" in predicted_class_name_raw:
+        col1, col2, col3 = st.columns(3)
+        with col1:
             st.markdown("""
-            <div class="healthy-info">
-                <h4>✅ Plant appears to be Healthy</h4>
-                <p>No disease was detected. Continue to monitor your plant for any signs of stress or disease. Regular care, proper watering, and good nutrition are key to keeping it healthy.</p>
+            <div class="step">
+                <div class="step-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16"><path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/><path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/></svg>
+                </div>
+                <h3>1. Upload Image</h3>
+                <p>Select a clear photo of a plant leaf from your device.</p>
             </div>
             """, unsafe_allow_html=True)
-        else:
-            disease_info = DISEASE_INFO.get(predicted_class_name)
-            if disease_info:
-                search_query = predicted_class_name.replace(" ", "+")
-                google_link = f"https://www.google.com/search?q={search_query}"
-                st.markdown(f"""
-                <div class="disease-info">
-                    <h4>⚠️ Disease Details</h4>
-                    <p><strong>Description:</strong> {disease_info['description']}</p>
-                    <p><strong>Treatment:</strong> {disease_info['treatment']}</p>
-                    <a href="{google_link}" target="_blank">Click here to learn more on Google</a>
+        with col2:
+            st.markdown("""
+            <div class="step">
+                <div class="step-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16"><path d="M5 0a.5.5 0 0 1 .5.5V2h1V.5a.5.5 0 0 1 1 0V2h1V.5a.5.5 0 0 1 1 0V2h1V.5a.5.5 0 0 1 1 0V2A2.5 2.5 0 0 1 14 4.5h1.5a.5.5 0 0 1 0 1H14v1h1.5a.5.5 0 0 1 0 1H14v1h1.5a.5.5 0 0 1 0 1H14v1h1.5a.5.5 0 0 1 0 1H14A2.5 2.5 0 0 1 11.5 14v1.5a.5.5 0 0 1-1 0V14h-1v1.5a.5.5 0 0 1-1 0V14h-1v1.5a.5.5 0 0 1-1 0V14h-1v1.5a.5.5 0 0 1-1 0V14A2.5 2.5 0 0 1 2 11.5H.5a.5.5 0 0 1 0-1H2v-1H.5a.5.5 0 0 1 0-1H2v-1H.5a.5.5 0 0 1 0-1H2v-1H.5a.5.5 0 0 1 0-1H2A2.5 2.5 0 0 1 4.5 2V.5A.5.5 0 0 1 5 0zm-.5 3A1.5 1.5 0 0 0 3 4.5v7A1.5 1.5 0 0 0 4.5 13h7a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 11.5 3h-7zM5 6.5A1.5 1.5 0 0 1 6.5 5h3A1.5 1.5 0 0 1 11 6.5v3A1.5 1.5 0 0 1 9.5 11h-3A1.5 1.5 0 0 1 5 9.5v-3zM6.5 6a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z"/></svg>
+                </div>
+                <h3>2. AI Analysis</h3>
+                <p>Our system analyzes the image using a deep learning model.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with col3:
+            st.markdown("""
+            <div class="step">
+                <div class="step-icon">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16"><path d="M7.5 5.5a.5.5 0 0 0-1 0v.634l-.549-.317a.5.5 0 1 0-.5.866L6 7l-.549.317a.5.5 0 1 0 .5.866l.549-.317V8.5a.5.5 0 1 0 1 0v-.634l.549.317a.5.5 0 1 0 .5-.866L8 7l.549-.317a.5.5 0 1 0-.5-.866l-.549.317V5.5zm-2 4.5a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 2a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5z"/><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/></svg>
+                </div>
+                <h3>3. Get Results</h3>
+                <p>Receive an instant diagnosis and information about the disease.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # Display results if an image has been uploaded
+    if st.session_state.uploaded_image is not None:
+        image = Image.open(st.session_state.uploaded_image)
+        
+        display_image = image.copy()
+        display_image.thumbnail((400, 400))
+
+        st.markdown('<div class="results-card">', unsafe_allow_html=True)
+        
+        res_col1, res_col2 = st.columns(2)
+        
+        with res_col1:
+            st.markdown("<h3>Uploaded Image</h3>", unsafe_allow_html=True)
+            st.image(display_image, caption='Your uploaded image.')
+
+        with res_col2:
+            with st.spinner('Classifying...'):
+                processed_image = preprocess_image(image)
+                prediction = model.predict(processed_image)
+
+                predicted_class_index = np.argmax(prediction)
+                predicted_class_name_raw = CLASS_NAMES[predicted_class_index]
+                predicted_class_name = predicted_class_name_raw.replace('___', ' - ').replace('_', ' ')
+                confidence = float(np.max(prediction))
+
+                top_3_indices = np.argsort(prediction[0])[-3:][::-1]
+                top_3_predictions = [{"class": CLASS_NAMES[i].replace('___', ' - ').replace('_', ' '), "confidence": f"{prediction[0][i]*100:.2f}%"} for i in top_3_indices]
+
+            st.markdown("<h3>Prediction Result</h3>", unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="main-prediction">
+                <strong>{predicted_class_name}</strong>
+                <span>(Confidence: {confidence*100:.2f}%)</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if "healthy" in predicted_class_name_raw:
+                st.markdown("""
+                <div class="healthy-info">
+                    <h4>✅ Plant appears to be Healthy</h4>
+                    <p>No disease was detected. Continue to monitor your plant for any signs of stress or disease. Regular care, proper watering, and good nutrition are key to keeping it healthy.</p>
                 </div>
                 """, unsafe_allow_html=True)
+            else:
+                disease_info = DISEASE_INFO.get(predicted_class_name)
+                if disease_info:
+                    search_query = predicted_class_name.replace(" ", "+")
+                    google_link = f"https://www.google.com/search?q={search_query}"
+                    st.markdown(f"""
+                    <div class="disease-info">
+                        <h4>⚠️ Disease Details</h4>
+                        <p><strong>Description:</strong> {disease_info['description']}</p>
+                        <p><strong>Treatment:</strong> {disease_info['treatment']}</p>
+                        <a href="{google_link}" target="_blank">Click here to learn more on Google</a>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-        st.markdown('<div class="top-predictions">', unsafe_allow_html=True)
-        st.markdown("<h3>Top 3 Predictions:</h3>", unsafe_allow_html=True)
-        
-        list_html = "<ul>"
-        for p in top_3_predictions:
-            list_html += f"<li>{p['class']} <span>{p['confidence']}</span></li>"
-        list_html += "</ul>"
-        
-        st.markdown(list_html, unsafe_allow_html=True)
+            st.markdown('<div class="top-predictions">', unsafe_allow_html=True)
+            st.markdown("<h3>Top 3 Predictions:</h3>", unsafe_allow_html=True)
+            
+            list_html = "<ul>"
+            for p in top_3_predictions:
+                list_html += f"<li>{p['class']} <span>{p['confidence']}</span></li>"
+            list_html += "</ul>"
+            
+            st.markdown(list_html, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
         st.markdown('</div>', unsafe_allow_html=True)
-
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
