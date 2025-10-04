@@ -208,15 +208,6 @@ def load_css_and_html():
 # Call the function to apply styles
 load_css_and_html()
 
-# --- Dummy Custom Layer ---
-# This class is created to handle a custom layer from the efficientnet library
-# that was used when the model was originally trained and saved. Keras needs
-# to know what 'FixedDropout' is when loading the model. We define it here as
-# being equivalent to the standard Dropout layer, which is safe for inference.
-class FixedDropout(tf.keras.layers.Dropout):
-    def __init__(self, rate, **kwargs):
-        super().__init__(rate, **kwargs)
-
 # --- Model Loading ---
 @st.cache_resource
 def load_model():
@@ -225,19 +216,32 @@ def load_model():
         st.error(f"Model file not found at {model_path}")
         st.stop()
     try:
-        custom_objects = {
-            "swish": tf.keras.activations.swish,
-            "FixedDropout": FixedDropout
-        }
-        # --- Load model without compiling ---
-        model = tf.keras.models.load_model(
-            model_path,
-            custom_objects=custom_objects,
-            compile=False
+        # --- MODIFIED: Re-create the model architecture and load only the weights ---
+        # 1. Define the base model (EfficientNetB2)
+        base_model = tf.keras.applications.EfficientNetB2(
+            include_top=False,
+            weights=None,  # We are loading our own trained weights
+            input_shape=(224, 224, 3)
         )
+        base_model.trainable = False
+
+        # 2. Define the full model by adding custom layers on top of the base
+        model = tf.keras.Sequential([
+            base_model,
+            tf.keras.layers.GlobalAveragePooling2D(),
+            tf.keras.layers.Dropout(0.4),
+            tf.keras.layers.Dense(512, activation='relu'),
+            tf.keras.layers.Dropout(0.3),
+            tf.keras.layers.Dense(38, activation='softmax')
+        ])
+
+        # 3. Load the saved weights into the newly defined model structure
+        model.load_weights(model_path)
+        
         return model
     except Exception as e:
         st.error(f"Error loading model: {e}")
+        st.info("This might be due to an architecture mismatch. Ensure the defined architecture here matches the one in your training script.")
         st.stop()
 
 model = load_model()
