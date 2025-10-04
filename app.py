@@ -216,34 +216,31 @@ def load_model():
         st.error(f"Model file not found at {model_path}")
         st.stop()
     try:
-        # --- MODIFIED: Re-create the model architecture using the Functional API ---
+        # --- MODIFIED: Final robust approach ---
         
         # 1. Define the input layer
         inputs = tf.keras.Input(shape=(224, 224, 3))
-        
-        # 2. Add the missing Normalization layer with a UNIQUE name
-        x = tf.keras.layers.Normalization(name='input_normalization')(inputs)
 
-        # 3. Define the base model (EfficientNetB2)
+        # 2. Define the base model (EfficientNetB2)
         base_model = tf.keras.applications.EfficientNetB2(
             include_top=False,
             weights=None,
-            input_tensor=x # Connect base model to the normalization layer
+            input_tensor=inputs # Connect base model DIRECTLY to the input
         )
         base_model.trainable = False
 
-        # 4. Define the custom layers and connect them
-        y = base_model.output
-        y = tf.keras.layers.GlobalAveragePooling2D()(y)
-        y = tf.keras.layers.Dropout(0.4)(y)
-        y = tf.keras.layers.Dense(512, activation='relu')(y)
-        y = tf.keras.layers.Dropout(0.3)(y)
-        outputs = tf.keras.layers.Dense(38, activation='softmax')(y)
+        # 3. Define the custom layers and connect them
+        x = base_model.output
+        x = tf.keras.layers.GlobalAveragePooling2D()(x)
+        x = tf.keras.layers.Dropout(0.4)(x)
+        x = tf.keras.layers.Dense(512, activation='relu')(x)
+        x = tf.keras.layers.Dropout(0.3)(x)
+        outputs = tf.keras.layers.Dense(38, activation='softmax')(x)
 
-        # 5. Create the final model
+        # 4. Create the final model
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
 
-        # 6. Load the saved weights into the newly defined model structure
+        # 5. Load the saved weights into the newly defined model structure
         model.load_weights(model_path)
         
         return model
