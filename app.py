@@ -208,6 +208,15 @@ def load_css_and_html():
 # Call the function to apply styles
 load_css_and_html()
 
+# --- Dummy Custom Layer ---
+# This class is created to handle a custom layer from the efficientnet library
+# that was used when the model was originally trained and saved. Keras needs
+# to know what 'FixedDropout' is when loading the model. We define it here as
+# being equivalent to the standard Dropout layer, which is safe for inference.
+class FixedDropout(tf.keras.layers.Dropout):
+    def __init__(self, rate, **kwargs):
+        super().__init__(rate, **kwargs)
+
 # --- Model Loading ---
 @st.cache_resource
 def load_model():
@@ -218,9 +227,9 @@ def load_model():
     try:
         custom_objects = {
             "swish": tf.keras.activations.swish,
-            "FixedDropout": tf.keras.layers.Dropout
+            "FixedDropout": FixedDropout
         }
-        # --- MODIFIED: Load model without compiling ---
+        # --- Load model without compiling ---
         model = tf.keras.models.load_model(
             model_path,
             custom_objects=custom_objects,
