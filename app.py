@@ -216,26 +216,31 @@ def load_model():
         st.error(f"Model file not found at {model_path}")
         st.stop()
     try:
-        # --- MODIFIED: Re-create the model architecture and load only the weights ---
-        # 1. Define the base model (EfficientNetB2)
+        # --- MODIFIED: Re-create the model architecture using the Functional API ---
+        
+        # 1. Define the input layer
+        inputs = tf.keras.Input(shape=(224, 224, 3))
+
+        # 2. Define the base model (EfficientNetB2)
         base_model = tf.keras.applications.EfficientNetB2(
             include_top=False,
-            weights=None,  # We are loading our own trained weights
-            input_shape=(224, 224, 3)
+            weights=None,
+            input_tensor=inputs
         )
         base_model.trainable = False
 
-        # 2. Define the full model by adding custom layers on top of the base
-        model = tf.keras.Sequential([
-            base_model,
-            tf.keras.layers.GlobalAveragePooling2D(),
-            tf.keras.layers.Dropout(0.4),
-            tf.keras.layers.Dense(512, activation='relu'),
-            tf.keras.layers.Dropout(0.3),
-            tf.keras.layers.Dense(38, activation='softmax')
-        ])
+        # 3. Define the custom layers and connect them
+        x = base_model.output
+        x = tf.keras.layers.GlobalAveragePooling2D()(x)
+        x = tf.keras.layers.Dropout(0.4)(x)
+        x = tf.keras.layers.Dense(512, activation='relu')(x)
+        x = tf.keras.layers.Dropout(0.3)(x)
+        outputs = tf.keras.layers.Dense(38, activation='softmax')(x)
 
-        # 3. Load the saved weights into the newly defined model structure
+        # 4. Create the final model
+        model = tf.keras.Model(inputs=inputs, outputs=outputs)
+
+        # 5. Load the saved weights into the newly defined model structure
         model.load_weights(model_path)
         
         return model
