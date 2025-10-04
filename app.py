@@ -221,8 +221,8 @@ def load_model():
         # 1. Define the input layer
         inputs = tf.keras.Input(shape=(224, 224, 3))
         
-        # 2. Add the missing Normalization layer as indicated by the error
-        x = tf.keras.layers.Normalization(name='normalization')(inputs)
+        # 2. Add the missing Normalization layer with a UNIQUE name
+        x = tf.keras.layers.Normalization(name='input_normalization')(inputs)
 
         # 3. Define the base model (EfficientNetB2)
         base_model = tf.keras.applications.EfficientNetB2(
