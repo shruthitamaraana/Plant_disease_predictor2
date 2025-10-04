@@ -220,27 +220,30 @@ def load_model():
         
         # 1. Define the input layer
         inputs = tf.keras.Input(shape=(224, 224, 3))
+        
+        # 2. Add the missing Normalization layer as indicated by the error
+        x = tf.keras.layers.Normalization(name='normalization')(inputs)
 
-        # 2. Define the base model (EfficientNetB2)
+        # 3. Define the base model (EfficientNetB2)
         base_model = tf.keras.applications.EfficientNetB2(
             include_top=False,
             weights=None,
-            input_tensor=inputs
+            input_tensor=x # Connect base model to the normalization layer
         )
         base_model.trainable = False
 
-        # 3. Define the custom layers and connect them
-        x = base_model.output
-        x = tf.keras.layers.GlobalAveragePooling2D()(x)
-        x = tf.keras.layers.Dropout(0.4)(x)
-        x = tf.keras.layers.Dense(512, activation='relu')(x)
-        x = tf.keras.layers.Dropout(0.3)(x)
-        outputs = tf.keras.layers.Dense(38, activation='softmax')(x)
+        # 4. Define the custom layers and connect them
+        y = base_model.output
+        y = tf.keras.layers.GlobalAveragePooling2D()(y)
+        y = tf.keras.layers.Dropout(0.4)(y)
+        y = tf.keras.layers.Dense(512, activation='relu')(y)
+        y = tf.keras.layers.Dropout(0.3)(y)
+        outputs = tf.keras.layers.Dense(38, activation='softmax')(y)
 
-        # 4. Create the final model
+        # 5. Create the final model
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
 
-        # 5. Load the saved weights into the newly defined model structure
+        # 6. Load the saved weights into the newly defined model structure
         model.load_weights(model_path)
         
         return model
