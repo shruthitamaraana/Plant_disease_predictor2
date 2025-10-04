@@ -216,37 +216,12 @@ def load_model():
         st.error(f"Model file not found at {model_path}")
         st.stop()
     try:
-        # --- MODIFIED: Final robust approach ---
-        
-        # 1. Define the input layer
-        inputs = tf.keras.Input(shape=(224, 224, 3))
-
-        # 2. Define the base model (EfficientNetB2)
-        base_model = tf.keras.applications.EfficientNetB2(
-            include_top=False,
-            weights=None,
-            input_tensor=inputs # Connect base model DIRECTLY to the input
-        )
-        base_model.trainable = False
-
-        # 3. Define the custom layers and connect them
-        x = base_model.output
-        x = tf.keras.layers.GlobalAveragePooling2D()(x)
-        x = tf.keras.layers.Dropout(0.4)(x)
-        x = tf.keras.layers.Dense(512, activation='relu')(x)
-        x = tf.keras.layers.Dropout(0.3)(x)
-        outputs = tf.keras.layers.Dense(38, activation='softmax')(x)
-
-        # 4. Create the final model
-        model = tf.keras.Model(inputs=inputs, outputs=outputs)
-
-        # 5. Load the saved weights into the newly defined model structure
-        model.load_weights(model_path)
-        
+        # Load the model directly, as it contains the normalization layer
+        model = tf.keras.models.load_model(model_path)
         return model
     except Exception as e:
         st.error(f"Error loading model: {e}")
-        st.info("This might be due to an architecture mismatch. Ensure the defined architecture here matches the one in your training script.")
+        st.info("This might be due to an architecture mismatch or a version conflict.")
         st.stop()
 
 model = load_model()
@@ -303,7 +278,8 @@ def preprocess_image(image):
         image = image.convert('RGB')
     img = image.resize((224, 224))
     img_array = np.array(img)
-    img_array = img_array / 255.0
+    # --- MODIFIED: Do NOT scale pixels. The model's internal layer will do it. ---
+    # img_array = img_array / 255.0
     img_array = np.expand_dims(img_array, axis=0)
     return img_array
 
